@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY", "test-key-100")
+#fallback key for demonstration purpose
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
@@ -102,8 +103,10 @@ def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     top_recommendations = top_recommendations[top_recommendations > 0].head(5)
 
     results = [
-        Recommendation(product=product, score=int(freq))
-        for product, freq in top_recommendations.items()
+        Recommendation(
+            product=product,
+            score=int(freq)) for 
+            product, freq in top_recommendations.items()
     ]
 
     return RecommendationResponse(customer_id=customer_id, recommendations=results)
