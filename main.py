@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 
 load_dotenv()
 
-API_KEY = os.environ.get("API_KEY", "dev-secret-key-change-me")
+API_KEY = os.environ.get("API_KEY", "test-key-100")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
