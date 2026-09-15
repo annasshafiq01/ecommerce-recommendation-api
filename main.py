@@ -1,3 +1,6 @@
+# E-commerce recommendation engine implemented using FAST API. It authorizes the access of API using API key authenciation.
+# Run http://localhost:8000/docs for better demonstration via swagger.
+
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -12,13 +15,17 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
+# Make an .env file containing API_KEY in the same folder as main.py to use enviromental variable
+# Format:
+# API_KEY=api_key_123
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY", "test-key-100")
-#fallback key for demonstration purpose
+# Fallback key will be used if there is no .env file
+
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-
+# verify_api_key() is called whenever there is a request for recommendations
 def verify_api_key(provided_key: str = Security(api_key_header)):
     if provided_key is None:
         raise HTTPException(status_code=401, detail="Missing API Key.")
@@ -26,11 +33,11 @@ def verify_api_key(provided_key: str = Security(api_key_header)):
         raise HTTPException(status_code=403, detail="Invalid API Key.")
     return provided_key
 
-
+# Global variables to be accessed the API endpoint 
 matrix = None
 knn_model = None
 
-
+# Lifespan will start whenever the API is loaded and keeps running until the server is turned off.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global matrix, knn_model
@@ -73,12 +80,12 @@ class RecommendationResponse(BaseModel):
     customer_id: float
     recommendations: list[Recommendation]
 
-
+# Default message for whenever "/" i.e., homepage is accessed
 @app.get("/")
 def root():
     return {"message": "Recommendation API is running. Try /recommend/{customer_id}"}
 
-
+# Actual request for the recommendations for a specific customer_id that is fetched from the URL
 @app.get("/recommend/{customer_id}", response_model=RecommendationResponse)
 def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     if customer_id not in matrix.index:
@@ -87,6 +94,7 @@ def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
             detail=f"Customer ID {customer_id} not found in the database."
         )
 
+    # Generating recommendations for customer_id
     user_index = matrix.index.get_loc(customer_id)
     user_vector = matrix.iloc[user_index].values.reshape(1, -1)
 
@@ -102,6 +110,8 @@ def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     top_recommendations = unseen_products.sort_values(ascending=False)
     top_recommendations = top_recommendations[top_recommendations > 0].head(5)
 
+    # results list will be returned in .json format that contains recommended products and their score.
+    # (score is the number of neighbours that have actually bought the product)
     results = [
         Recommendation(
             product=product,
