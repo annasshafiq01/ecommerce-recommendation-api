@@ -1,5 +1,6 @@
 # E-commerce recommendation engine implemented using FAST API. It authorizes the access of API using API key authenciation.
 # Run http://localhost:8000/docs for better demonstration via swagger.
+# Read README.md from the repo for help
 
 import os
 import secrets
