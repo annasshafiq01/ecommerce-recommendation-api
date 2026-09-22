@@ -51,8 +51,7 @@ async def lifespan(app: FastAPI):
     top_items = df['Description'].value_counts().head(1500).index
     df = df[df['Description'].isin(top_items)]
 
-   # Ratings are derived in this block 
-   # If there is no ratings column in the dataset otherwise it'll be skipped.
+    # Ratings are derived in this block if there is no ratings column in the dataset, otherwise it'll be skipped.
     if 'Rating' not in df.columns:
         implicit = df.groupby(['CustomerID', 'Description']).agg(
             total_quantity=('Quantity', 'sum'),
@@ -62,10 +61,8 @@ async def lifespan(app: FastAPI):
         # Frequency has double the weight of quantity of product purchased.
         implicit['raw_score'] = implicit['total_quantity'] + (implicit['frequency'] * 2)
 
-        #Divides the raw_score into 5 groups and a rating from 1-5 is assigned to each product based on the group it is in.
-        implicit['Rating'] = pd.qcut(
-            implicit['raw_score'], q=5, labels=[1, 2, 3, 4, 5], duplicates='drop'
-        ).astype(int)
+        percentile = implicit['raw_score'].rank(pct=True)
+        implicit['Rating'] = (1 + 4 * percentile).round(2)
 
         df = df.merge(implicit[['CustomerID', 'Description', 'Rating']], on=['CustomerID', 'Description'])
 
@@ -91,7 +88,7 @@ app.add_middleware(
 
 class Recommendation(BaseModel):
     product: str
-    score: float
+    rating: float
 
 
 class RecommendationResponse(BaseModel):
@@ -134,7 +131,7 @@ def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     results = [
         Recommendation(
             product=product,
-            score=round(float(rating), 2)) for
+            rating=round(float(rating), 2)) for
             product, rating in top_recommendations.items()
     ]
 
