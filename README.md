@@ -5,9 +5,11 @@ A KNN-based product recommendation API built with FastAPI. Given a customer ID, 
 ## How it works
 
 - Trained on the [Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online+retail) (`data.csv`).
-- Builds a binary customer × product purchase matrix.
+- Since the dataset has no explicit customer ratings, an implicit rating (1.00–5.00) is derived per customer-product pair from purchase behavior: total quantity bought plus repeat-order frequency, scaled by percentile rank into a continuous decimal rating (e.g. `4.29`, `3.61`) rather than flat integer buckets.
+- If a dataset with a real `Rating` column is used instead, this derivation step is skipped automatically and the real ratings are used.
+- Builds a customer × product matrix of these ratings.
 - Uses cosine-similarity K-Nearest Neighbors to find the 5 most similar customers.
-- Recommends products those neighbors bought that the target customer hasn't.
+- Recommends products those neighbors rated highly that the target customer hasn't bought. The returned `score` is the average rating given to that product by similar customers.
 
 ## Setup
 
@@ -75,8 +77,8 @@ X-API-Key: your-real-secret-key-here
 {
   "customer_id": 17850,
   "recommendations": [
-    { "product": "3 HOOK PHOTO SHELF ANTIQUE WHITE", "score": 2 },
-    { "product": "ORGANISER WOOD ANTIQUE WHITE", "score": 2 }
+    { "product": "3 HOOK PHOTO SHELF ANTIQUE WHITE", "score": 4.82 },
+    { "product": "ORGANISER WOOD ANTIQUE WHITE", "score": 4.72 }
   ]
 }
 ```
