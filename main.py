@@ -1,5 +1,5 @@
-# E-commerce recommendation engine implemented using FAST API. It authorizes the access of API using API key authenciation.
-# Run http://localhost:8000/docs for better demonstration via swagger.
+# E-commerce recommendation engine built with FastAPI. Access is authenticated using an API key.
+# Run http://localhost:8000/docs for interactive documentation via Swagger UI.
 # Read README.md from the repo for help
 
 import os
@@ -16,13 +16,13 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# Make an .env file containing API_KEY in the same folder as main.py to use enviromental variable
+# Create a .env file in the same folder as main.py to set the API_KEY environment variable
 # Format:
 # API_KEY=api_key_123
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY", "test-key-100")
-# Fallback key will be used if there is no .env file
+# Fallback key is used if API_KEY is not set via .env or another environment variable
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -34,11 +34,11 @@ def verify_api_key(provided_key: str = Security(api_key_header)):
         raise HTTPException(status_code=403, detail="Invalid API Key.")
     return provided_key
 
-# Global variables to be accessed the API endpoint 
+# Global variables to be accessed by the API endpoints
 matrix = None
 knn_model = None
 
-# Lifespan will start whenever the API is loaded and keeps running until the server is turned off.
+# Runs once at startup to load data and train the model; pauses here (via yield) until the server shuts down.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global matrix, knn_model
@@ -51,10 +51,27 @@ async def lifespan(app: FastAPI):
     top_items = df['Description'].value_counts().head(1500).index
     df = df[df['Description'].isin(top_items)]
 
+   # Ratings are derived in this block 
+   # If there is no ratings column in the dataset otherwise it'll be skipped.
+    if 'Rating' not in df.columns:
+        implicit = df.groupby(['CustomerID', 'Description']).agg(
+            total_quantity=('Quantity', 'sum'),
+            frequency=('InvoiceNo', 'nunique')
+        ).reset_index()
+
+        # Frequency has double the weight of quantity of product purchased.
+        implicit['raw_score'] = implicit['total_quantity'] + (implicit['frequency'] * 2)
+
+        #Divides the raw_score into 5 groups and a rating from 1-5 is assigned to each product based on the group it is in.
+        implicit['Rating'] = pd.qcut(
+            implicit['raw_score'], q=5, labels=[1, 2, 3, 4, 5], duplicates='drop'
+        ).astype(int)
+
+        df = df.merge(implicit[['CustomerID', 'Description', 'Rating']], on=['CustomerID', 'Description'])
+
     matrix = df.pivot_table(
-        index='CustomerID', columns='Description', values='Quantity', aggfunc='sum'
+        index='CustomerID', columns='Description', values='Rating', aggfunc='mean'
     ).fillna(0)
-    matrix = (matrix > 0).astype(int)
 
     knn_model = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=6)
     knn_model.fit(matrix.values)
@@ -74,7 +91,7 @@ app.add_middleware(
 
 class Recommendation(BaseModel):
     product: str
-    score: int
+    score: float
 
 
 class RecommendationResponse(BaseModel):
@@ -86,7 +103,7 @@ class RecommendationResponse(BaseModel):
 def root():
     return {"message": "Recommendation API is running. Try /recommend/{customer_id}"}
 
-# Actual request for the recommendations for a specific customer_id that is fetched from the URL
+# Returns recommendations for the customer_id provided in the URL path
 @app.get("/recommend/{customer_id}", response_model=RecommendationResponse)
 def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     if customer_id not in matrix.index:
@@ -103,21 +120,22 @@ def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     neighbor_indices = indices.flatten()[1:]
 
     neighbor_data = matrix.iloc[neighbor_indices]
-    neighbor_item_frequency = neighbor_data.sum(axis=0)
+    # Calculating the average rating for each product based on the ratings
+    neighbor_avg_rating = neighbor_data.where(neighbor_data > 0).mean(axis=0).fillna(0)
 
     target_user_history = matrix.iloc[user_index]
-    unseen_products = neighbor_item_frequency[target_user_history == 0]
+    unseen_products = neighbor_avg_rating[target_user_history == 0]
 
     top_recommendations = unseen_products.sort_values(ascending=False)
     top_recommendations = top_recommendations[top_recommendations > 0].head(5)
 
-    # results list will be returned in .json format that contains recommended products and their score.
-    # (score is the number of neighbours that have actually bought the product)
+    # results list will be returned in JSON format that contains recommended products and their score.
+    # (score is the average rating given to this product by similar customers)
     results = [
         Recommendation(
             product=product,
-            score=int(freq)) for 
-            product, freq in top_recommendations.items()
+            score=round(float(rating), 2)) for
+            product, rating in top_recommendations.items()
     ]
 
     return RecommendationResponse(customer_id=customer_id, recommendations=results)
