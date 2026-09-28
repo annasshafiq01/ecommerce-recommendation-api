@@ -37,11 +37,12 @@ def verify_api_key(provided_key: str = Security(api_key_header)):
 # Global variables to be accessed by the API endpoints
 matrix = None
 knn_model = None
+product_orders = None
 
 # Runs once at startup to load data and train the model; pauses here (via yield) until the server shuts down.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global matrix, knn_model
+    global matrix, knn_model, product_orders
 
     df = pd.read_csv("data.csv", encoding='unicode_escape')
 
@@ -66,11 +67,30 @@ async def lifespan(app: FastAPI):
 
         df = df.merge(implicit[['CustomerID', 'Description', 'Rating']], on=['CustomerID', 'Description'])
 
+    # This block generates ratings for products that are bought but do not have a rating. The original 
+    # ratings of other products will remain untouched.
+    elif df['Rating'].isna().any():
+        implicit = df.groupby(['CustomerID', 'Description']).agg(
+            total_quantity=('Quantity', 'sum'),
+            frequency=('InvoiceNo', 'nunique')
+        ).reset_index()
+
+        implicit['raw_score'] = implicit['total_quantity'] + (implicit['frequency'] * 2)
+
+        percentile = implicit['raw_score'].rank(pct=True)
+        implicit['derived_rating'] = (1 + 4 * percentile).round(2)
+
+        df = df.merge(implicit[['CustomerID', 'Description', 'derived_rating']], on=['CustomerID', 'Description'])
+        df['Rating'] = df['Rating'].fillna(df['derived_rating'])
+    
+    product_orders = df.groupby('Description')['InvoiceNo'].nunique()
+
     matrix = df.pivot_table(
         index='CustomerID', columns='Description', values='Rating', aggfunc='mean'
-    ).fillna(0)
+    ).fillna(0).astype('float32')
 
-    knn_model = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=6)
+    # Changed the number of NearestNeighbors to 21 rather than 6 to generate better recommendations. 
+    knn_model = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=21)
     knn_model.fit(matrix.values)
 
     yield
@@ -89,6 +109,7 @@ app.add_middleware(
 class Recommendation(BaseModel):
     product: str
     rating: float
+    orders: int
 
 
 class RecommendationResponse(BaseModel):
@@ -120,19 +141,28 @@ def recommend(customer_id: float, api_key: str = Security(verify_api_key)):
     # Calculating the average rating for each product based on the ratings
     neighbor_avg_rating = neighbor_data.where(neighbor_data > 0).mean(axis=0).fillna(0)
 
+    # Instead of blindly recommending products best sellers, it sorts the recommendations based on the formula
+    # total neighbors that bought the product x average rating 
+    neighbor_sum_rating = neighbor_data.sum(axis=0)
+
     target_user_history = matrix.iloc[user_index]
-    unseen_products = neighbor_avg_rating[target_user_history == 0]
+    unseen_products = neighbor_sum_rating[target_user_history == 0]
 
     top_recommendations = unseen_products.sort_values(ascending=False)
+
+    # top_recommendations contains the sum of rating for each product and the recommendations will be sorted of it basis. 
     top_recommendations = top_recommendations[top_recommendations > 0].head(5)
 
     # results list will be returned in JSON format that contains recommended products and their score.
     # (score is the average rating given to this product by similar customers)
+   
     results = [
         Recommendation(
             product=product,
-            rating=round(float(rating), 2)) for
-            product, rating in top_recommendations.items()
+            rating=round(float(neighbor_avg_rating[product]), 2),
+            orders=int(product_orders[product])
+        ) 
+        for product in top_recommendations.index
     ]
 
     return RecommendationResponse(customer_id=customer_id, recommendations=results)
