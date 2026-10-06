@@ -41,7 +41,12 @@ A KNN-based product recommendation API built with FastAPI. Given a customer ID, 
    python -c "import secrets; print(secrets.token_hex(32))"
    ```
    **The server will refuse to start if `API_KEY` is not set** — there is no fallback/default key.
-6. (Optional) Set `DATA_PATH` and `NEW_ARRIVALS_PATH` in `.env` if your CSV files live somewhere other than the project folder. Both default to `data.csv` and `new_arrivals.csv` if not set.
+6. Set `DATA_PATH` and `NEW_ARRIVALS_PATH` in `.env` to point to the CSV files, which live in the `Datasets/` folder:
+   ```
+   DATA_PATH=Datasets/data.csv
+   NEW_ARRIVALS_PATH=Datasets/new_arrivals.csv
+   ```
+   (Both default to `data.csv` and `new_arrivals.csv` in the project root if not set — so this step is required given the current folder layout.)
 7. Run the server:
    ```
    uvicorn main:app --reload
@@ -126,8 +131,8 @@ Returns up to 5 not-yet-sold products that best match the customer's existing pu
 | Variable | Required? | Default | Purpose |
 |---|---|---|---|
 | `API_KEY` | Yes | — (no fallback) | API authentication key. Server refuses to start if missing. |
-| `DATA_PATH` | No | `data.csv` | Path to the transaction dataset. |
-| `NEW_ARRIVALS_PATH` | No | `new_arrivals.csv` | Path to the new-arrivals product catalog. |
+| `DATA_PATH` | No | `data.csv` | Path to the transaction dataset. Set to `Datasets/data.csv` for this project's layout. |
+| `NEW_ARRIVALS_PATH` | No | `new_arrivals.csv` | Path to the new-arrivals product catalog. Set to `Datasets/new_arrivals.csv` for this project's layout. |
 
 ## Known limitations
 
