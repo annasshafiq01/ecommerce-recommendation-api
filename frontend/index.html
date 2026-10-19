@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Foxglove &amp; Fig · Home &amp; Gifts</title>
+<style>
+  body{margin:0;font:16px/1.5 system-ui,sans-serif;background:#fbf6ee;color:#2b2a26}
+  header{background:#fff;border-bottom:1px solid #e8dfd0;padding:16px 5vw}
+  header b{font:600 26px Georgia,serif;color:#2f4b3c}header span{color:#7a7467;margin-left:12px;font-size:14px}
+  main{max-width:1100px;margin:0 auto;padding:0 5vw 40px}
+  h2{font:600 22px Georgia,serif;margin:32px 0 12px}h2 small{font:14px system-ui,sans-serif;color:#7a7467;margin-left:8px}
+  #shoppers{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+  #shoppers button{border:1px solid #e8dfd0;background:#fff;border-radius:12px;padding:10px 16px;text-align:left;font:inherit;cursor:pointer}
+  #shoppers button.on{background:#2f4b3c;color:#fff;border-color:#2f4b3c}
+  #shoppers small{display:block;font-size:12px;opacity:.8}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
+  .card{background:#fff;border:1px solid #e8dfd0;border-radius:14px;overflow:hidden}
+  .tile{aspect-ratio:1.3;display:grid;place-items:center;font-size:48px;background:#f3eadb}
+  .info{padding:10px 12px}.info h3{margin:0;font-size:14.5px;line-height:1.3}
+  .info p{margin:4px 0 0;font-size:12.5px;color:#7a7467}.info b{display:block;margin-top:4px}
+  .ask{margin:28px 0 0}.ask p{margin:0 0 10px;color:#7a7467}
+  #go{background:#7b3f61;color:#fff;border:0;border-radius:999px;padding:14px 28px;font:600 16px system-ui,sans-serif;cursor:pointer}
+  .msg{color:#7a7467}.live{color:#1f6b3b;margin:18px 0 6px;font-size:14px}.foot{font-size:12.5px;color:#7a7467}
+  .err{background:#fdecea;border:1px solid #f0b8b2;color:#8a2a20;border-radius:12px;padding:14px 18px;margin-top:16px}
+  details{margin-top:8px}pre{background:#2b2a26;color:#e9efe6;padding:14px;border-radius:10px;overflow:auto;font-size:12.5px}
+  footer{text-align:center;color:#7a7467;font-size:13px;padding:20px 5vw 40px}
+</style>
+</head>
+<body>
+<header><b>🌿 Foxglove &amp; Fig</b><span>Home &amp; gifts · demo store</span></header>
+<main>
+  <div id="shoppers"></div>
+  <div id="page"></div>
+</main>
+<footer>Foxglove &amp; Fig is a fictional store for demonstration. Shoppers are examples built from anonymised sample data.</footer>
+<script src="config.js"></script>
+<script src="catalog.js"></script>
+<script src="demo-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
